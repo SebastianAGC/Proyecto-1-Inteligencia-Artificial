@@ -1,5 +1,4 @@
 import copy
-
 from numpy import sqrt, zeros, array_equal
 import sys
 import random
@@ -29,7 +28,7 @@ class Action:
         self.xCoordinate = x
         self.yCoordinate = y
 
-
+#Method to check if a row in the sudoku is completed
 def checkRow(sudoku, row, n, x):
     numbers = []
     max = int(sqrt(sudoku.size))
@@ -277,6 +276,18 @@ def isExplored(path, res, explored):
     else:
         return False
 
+def isSolvable(path, response, explored):
+    newPath = copy.deepcopy(path)
+    newPath.states.append(response)
+
+    if newPath in explored:
+        path.solvable = False
+        return False
+    else:
+        return True
+
+
+
 def graph_search(sudoku):
     frontier = []
     explored = []
@@ -295,29 +306,38 @@ def graph_search(sudoku):
     frontier.append(initialPath)
     minCost = pathCost(initialPath)
 
+    count = 0
     while True:
+        if count > 1000 :
+            return "Lo lamento, no pude encontrar una solución a tu sudoku."
+        else:
+            path = criteria(frontier, minCost)
+            s = copy.deepcopy(path.states[len(path.states) - 1])
+            print("Moviemiento #" , count, ":\n", s, "\n")
+            path.explored = True
+            explored.append(path)
 
-        path = criteria(frontier, minCost)
-        s = copy.deepcopy(path.states[len(path.states) - 1])
-        print("Step:\n" , s, "\n")
-        path.explored = True
-        explored.append(path)
+            if (goalTest(s)):
+                return s
 
-        if (goalTest(s)):
-            return s
+            possibleActions = actions(s)
+            if len(possibleActions) == 0:
+                path.solvable = False
 
-        possibleActions = actions(s)
-        if len(possibleActions) == 0:
-            path.solvable = False
+            newActions = []
+            for a in possibleActions:
+                response = result(s, a)
+                if isSolvable(path, response, explored):
+                    newActions.append(a)
 
-        for a in possibleActions:
-            response = result(s, a)
+            for a in newActions:
+                response = result(s, a)
 
-            if not isExplored(path, response, explored):
-                newPath = copy.deepcopy(path)
-                newPath.states.append(response)
-                frontier.append(newPath)
-
+                if not isExplored(path, response, explored):
+                    newPath = copy.deepcopy(path)
+                    newPath.states.append(response)
+                    frontier.append(newPath)
+        count = count + 1
 
 # Cleaning the incoming input
 input = sys.argv[1]
