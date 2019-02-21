@@ -1,6 +1,6 @@
 import copy
 
-import numpy as np
+from numpy import sqrt, zeros, array_equal
 import sys
 import random
 
@@ -15,10 +15,11 @@ class Path:
         self.states = []
         self.cost = 0
         self.explored = False
+        self.solvable = True
 
     def __eq__(self, other):
         if isinstance(other, Path):
-            return self.states == other.states
+            return array_equal(self.states, other.states)
         return False
 
 
@@ -31,28 +32,57 @@ class Action:
 
 def checkRow(sudoku, row, n, x):
     numbers = []
+    max = int(sqrt(sudoku.size))
+    defaultSum = 0
+    for i in range(max):
+        defaultSum = defaultSum + i + 1
+
     for i in range(n):
         if int(sudoku[row, i]) != 0:
             numbers.append(sudoku[row, i])
     if x in numbers:
-        return True
+        sum = 0
+        for i in range(len(numbers)):
+            sum = sum + numbers[i]
+
+        if defaultSum == sum:
+            return True
+        else:
+            return False
     else:
         return False
 
 
 def checkColumn(sudoku, column, n, x):
     numbers = []
+    max = int(sqrt(sudoku.size))
+    defaultSum = 0
+    for i in range(max):
+        defaultSum = defaultSum + i + 1
+
     for j in range(n):
         if int(sudoku[j, column]) != 0:
             numbers.append(sudoku[j, column])
     if x in numbers:
-        return True
+        sum = 0
+        for i in range(len(numbers)):
+            sum = sum + numbers[i]
+
+        if defaultSum == sum:
+            return True
+        else:
+            return False
     else:
         return False
 
 
 def checkBox(sudoku, row, column, n, x):
     numbers = []
+    max = int(sqrt(sudoku.size))
+    defaultSum = 0
+    for i in range(max):
+        defaultSum = defaultSum + i + 1
+
     if (row < 2):
         if (column < 2):
             numbers.append(sudoku[0, 0])
@@ -76,7 +106,14 @@ def checkBox(sudoku, row, column, n, x):
             numbers.append(sudoku[3, 2])
             numbers.append(sudoku[3, 3])
     if (x in numbers):
-        return True
+        sum = 0
+        for i in range(len(numbers)):
+            sum = sum + numbers[i]
+
+        if defaultSum == sum:
+            return True
+        else:
+            return False
     else:
         return False
 
@@ -107,7 +144,7 @@ def rowOrColumnComplete(row):
 def heurisic(s):
     rowsAndColumnsCompleted = 0
     quadrantsCompleted = 0
-    max = int(np.sqrt(s.size))
+    max = int(sqrt(s.size))
 
     # Cheking amount of rows and columns completed
     for i in range(max):
@@ -138,19 +175,23 @@ def heurisic(s):
 
 def criteria(frontier, minCost):
     resPath = Path()
+    newFrontier = []
     for path in frontier:
-        cost = pathCost(path)
-        path.cost = cost + heurisic(path.states[len(path.states) - 1])
-        if path.cost > minCost:
-            minCost = path.cost
-            resPath = path
+        if path.solvable:
+            cost = pathCost(path)
+            path.cost = cost + heurisic(path.states[len(path.states) - 1])
+            if path.cost > minCost:
+                minCost = path.cost
+                resPath = path
+            newFrontier.append(path)
+    frontier = copy.deepcopy(newFrontier)
     if len(resPath.states) == 0:
         resPath = random.choice(frontier)
     return resPath
 
 
 def goalTest(s):
-    max = int(np.sqrt(s.size))
+    max = int(sqrt(s.size))
     for i in range(max):
         for j in range(max):
             if not checkBox(s, i, j, max, s[i][j]):
@@ -169,7 +210,7 @@ def getRow(s, row):
 
 def getColumn(s, column):
     numbers = []
-    max = int(np.sqrt(s.size))
+    max = int(sqrt(s.size))
     for i in range(max):
         numbers.append(s[i][column])
     return numbers
@@ -204,7 +245,7 @@ def getQuadrant(s, row, column):
 
 def actions(s):
     possibleActions = []
-    max = int(np.sqrt(s.size))
+    max = int(sqrt(s.size))
     values = []
     for i in range(max):
         values.append(i + 1)
@@ -222,23 +263,25 @@ def actions(s):
 
 
 def result(s, a):
-    s[a.xCoordinate][a.yCoordinate] = a.number
-    return s
+    newS = copy.deepcopy(s)
+    newS[a.xCoordinate][a.yCoordinate] = a.number
+    return newS
 
 
 def isExplored(path, res, explored):
     newPath = copy.deepcopy(path)
     newPath.states.append(res)
-    if newPath not in explored:
-        return False
-    else:
-        return True
 
+    if newPath in explored:
+        return True
+    else:
+        return False
 
 def graph_search(sudoku):
     frontier = []
     explored = []
     values = []
+    possibleActions = []
 
     # Creating an array of possible sudoku values
     for x in range(n):
@@ -255,22 +298,24 @@ def graph_search(sudoku):
     while True:
 
         path = criteria(frontier, minCost)
-        s = path.states[len(path.states) - 1]
-        print(s)
+        s = copy.deepcopy(path.states[len(path.states) - 1])
+        print("Step:\n" , s, "\n")
         path.explored = True
         explored.append(path)
 
         if (goalTest(s)):
-            res = s
-            return res
+            return s
 
         possibleActions = actions(s)
+        if len(possibleActions) == 0:
+            path.solvable = False
+
         for a in possibleActions:
             response = result(s, a)
 
             if not isExplored(path, response, explored):
-                newPath = Path()
                 newPath = copy.deepcopy(path)
+                newPath.states.append(response)
                 frontier.append(newPath)
 
 
@@ -282,15 +327,15 @@ print("This is the input: ", input)
 
 # Obtaining input size to know what n x n size is the sudoku, where n is the input size.
 inputSize = len(input)
-n = np.sqrt(inputSize)
+n = sqrt(inputSize)
 n = int(n)
 
-#Creating a n x n sudoku filled with zeros
-sudoku = np.zeros((n,n))
+# Creating a n x n sudoku filled with zeros
+sudoku = zeros((n, n))
 
-#Filling the sudoku with the input
+# Filling the sudoku with the input
 characters = input
-for x in range (n):
+for x in range(n):
     for y in range(n):
         if characters[0] != ".":
             sudoku[x, y] = characters[0]
